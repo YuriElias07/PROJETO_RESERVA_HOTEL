@@ -1,13 +1,13 @@
 from datetime import datetime
 
 class Cliente:
-    def __init__(self, nome, email, id_cliente):
+    def __init__(self, nome, cpf, id_cliente):
         self.nome = nome
-        self.email = email
+        self.cpf = cpf
         self.id_cliente = id_cliente
 
     def __str__(self):
-        return f"ID: {self.id_cliente} - Cliente: {self.nome}, Email: {self.email}"
+        return f"ID: {self.id_cliente} - Cliente: {self.nome}, CPF: {self.cpf}"
 
 
 class Quarto:
@@ -30,15 +30,17 @@ class Reserva:
         self.data_fim = datetime.strptime(data_fim, '%d/%m/%Y')
         self.id_reserva = id_reserva
         self.valor_total = self.calcular_valor_total()
+        self.encerrada = False
 
     def calcular_valor_total(self):
         dias = (self.data_fim - self.data_inicio).days
         return dias * self.quarto.preco
 
     def __str__(self):
+        status = "Encerrada" if self.encerrada else "Ativa"
         return (f"ID: {self.id_reserva} - Reserva de {self.cliente.nome} no quarto {self.quarto.numero} "
                 f"de {self.data_inicio.strftime('%d/%m/%Y')} até {self.data_fim.strftime('%d/%m/%Y')} "
-                f"- Total: R${self.valor_total:.2f}")
+                f"- Total: R${self.valor_total:.2f} - Status: {status}")
 
 
 class GerenciadorDeReservas:
@@ -48,9 +50,13 @@ class GerenciadorDeReservas:
         self.clientes = []
         self.contador_clientes = 1  # Contador para IDs de clientes
         self.contador_reservas = 1   # Contador para IDs de reservas
+        self.contador_quartos = 1     # Contador para números de quartos
 
-    def adicionar_quarto(self, quarto):
+    def adicionar_quarto(self, tipo, preco):
+        quarto = Quarto(self.contador_quartos, tipo, preco)
         self.quartos.append(quarto)
+        self.contador_quartos += 1  # Incrementa o contador de quartos
+        print("\nQuarto adicionado com sucesso!")
 
     def listar_quartos(self):
         return self.quartos
@@ -84,6 +90,19 @@ class GerenciadorDeReservas:
     def listar_reservas(self):
         return self.reservas
 
+    def listar_reservas_ativas(self):
+        return [reserva for reserva in self.reservas if not reserva.encerrada]
+
+    def encerrar_reserva(self, id_reserva):
+        for reserva in self.reservas:
+            if reserva.id_reserva == id_reserva and not reserva.encerrada:
+                reserva.encerrada = True
+                reserva.quarto.disponivel = True  # Marca o quarto como disponível novamente
+                print(f"\nReserva ID {id_reserva} encerrada com sucesso!")
+                return reserva
+        print(f"\nReserva com ID {id_reserva} não encontrada ou já está encerrada.")
+        return None
+
     def adicionar_cliente(self, cliente):
         cliente.id_cliente = self.contador_clientes  # Define o ID do cliente
         self.clientes.append(cliente)
@@ -92,13 +111,13 @@ class GerenciadorDeReservas:
     def listar_clientes(self):
         return self.clientes
 
-    def atualizar_cliente(self, nome_antigo, novo_nome=None, novo_email=None):
+    def atualizar_cliente(self, nome_antigo, novo_nome=None, novo_cpf=None):
         for cliente in self.clientes:
             if cliente.nome == nome_antigo:
                 if novo_nome:
                     cliente.nome = novo_nome
-                if novo_email:
-                    cliente.email = novo_email
+                if novo_cpf:
+                    cliente.cpf = novo_cpf
                 return cliente
         return None
 
@@ -130,7 +149,8 @@ def menu_reservas():
     print("\n--- Gerenciamento de Reservas ---")
     print("1. Fazer uma reserva")
     print("2. Ver reservas")
-    print("3. Voltar ao menu principal")
+    print("3. Encerrar uma reserva")
+    print("4. Voltar ao menu principal")
     return input("Escolha uma opção: ")
 
 
@@ -155,12 +175,9 @@ def listar_quartos(gerenciador):
 
 
 def adicionar_quarto(gerenciador):
-    numero = int(input("Número do quarto: "))
     tipo = input("Tipo do quarto: ")
     preco = float(input("Preço do quarto: "))
-    quarto = Quarto(numero, tipo, preco)
-    gerenciador.adicionar_quarto(quarto)
-    print("\nQuarto adicionado com sucesso!")
+    gerenciador.adicionar_quarto(tipo, preco)
 
 
 def atualizar_quarto(gerenciador):
@@ -189,8 +206,8 @@ def remover_quarto(gerenciador):
 
 def fazer_reserva(gerenciador):
     nome = input("Nome do cliente: ")
-    email = input("Email do cliente: ")
-    cliente = Cliente(nome, email, None)  # ID será gerado ao adicionar o cliente
+    cpf = input("CPF do cliente: ")
+    cliente = Cliente(nome, cpf, None)  # ID será gerado ao adicionar o cliente
 
     try:
         quarto_numero = int(input("Número do quarto desejado: "))
@@ -202,7 +219,7 @@ def fazer_reserva(gerenciador):
             print("\nReserva confirmada!")
             print(reserva)
         else:
-            print("\nQuarto indisponível ou número de quarto inválido.")
+            print("\nQuarto indisponível ou Erro na data de início ou fim.")
     except ValueError:
         print("\nEntrada inválida. Tente novamente.")
 
@@ -217,10 +234,18 @@ def ver_reservas(gerenciador):
         print("\nNenhuma reserva encontrada.")
 
 
+def encerrar_reserva(gerenciador):
+    try:
+        id_reserva = int(input("Informe o ID da reserva a encerrar: "))
+        gerenciador.encerrar_reserva(id_reserva)
+    except ValueError:
+        print("\nID inválido. Tente novamente.")
+
+
 def adicionar_cliente(gerenciador):
     nome = input("Nome do cliente: ")
-    email = input("Email do cliente: ")
-    cliente = Cliente(nome, email, None)  # ID será gerado ao adicionar o cliente
+    cpf = input("CPF do cliente: ")
+    cliente = Cliente(nome, cpf, None)  # ID será gerado ao adicionar o cliente
     gerenciador.adicionar_cliente(cliente)
     print("\nCliente adicionado com sucesso!")
 
@@ -238,9 +263,9 @@ def listar_clientes(gerenciador):
 def atualizar_cliente(gerenciador):
     nome_antigo = input("Nome do cliente a ser atualizado: ")
     novo_nome = input("Novo nome do cliente (pressione Enter para manter): ")
-    novo_email = input("Novo email do cliente (pressione Enter para manter): ")
+    novo_cpf = input("Novo CPF do cliente (pressione Enter para manter): ")
 
-    cliente = gerenciador.atualizar_cliente(nome_antigo, novo_nome if novo_nome else None, novo_email if novo_email else None)
+    cliente = gerenciador.atualizar_cliente(nome_antigo, novo_nome if novo_nome else None, novo_cpf if novo_cpf else None)
     if cliente:
         print("\nCliente atualizado com sucesso!")
         print(cliente)
@@ -257,11 +282,9 @@ def remover_cliente(gerenciador):
 # Inicialização do sistema e loop principal
 def main():
     gerenciador = GerenciadorDeReservas()
-    gerenciador.adicionar_quarto(Quarto(101, "Single", 100))
-    gerenciador.adicionar_quarto(Quarto(102, "Double", 150))
-    gerenciador.adicionar_quarto(Quarto(103, "Suite", 540))
-    gerenciador.adicionar_quarto(Quarto(104, "Suite", 240))
-    gerenciador.adicionar_quarto(Quarto(105, "Double", 300))
+    gerenciador.adicionar_quarto("Single", 100)
+    gerenciador.adicionar_quarto("Double", 150)
+    gerenciador.adicionar_quarto("Suite", 540)
 
     while True:
         opcao = menu_principal()
@@ -288,6 +311,8 @@ def main():
                 elif opcao_reserva == "2":
                     ver_reservas(gerenciador)
                 elif opcao_reserva == "3":
+                    encerrar_reserva(gerenciador)
+                elif opcao_reserva == "4":
                     break
                 else:
                     print("Opção inválida. Tente novamente.")
